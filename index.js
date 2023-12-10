@@ -2,6 +2,7 @@ const telegraf = require('telegraf');
 require('dotenv').config({
     'path': __dirname + "/.env"
 });
+require('./keep_alive');
 
 const client = new telegraf.Telegraf(process.env.TOKEN);
 
