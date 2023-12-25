@@ -1,45 +1,61 @@
-const telegraf = require('telegraf');
+const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config({
     'path': __dirname + "/.env"
 });
 
-const client = new telegraf.Telegraf(process.env.TOKEN);
+const bot = new TelegramBot(process.env.TOKEN, {
+    "polling": true
+})
 
-client.start(ctx => {
-    ctx.sendMessage({
-        'text': "Привет, напиши мне любой вопрос и ты сможешь увидеть ответ на него в @tr\\_donkeys\n\nP\\.S\\. Это анонимно, не бойся \\([код](https://github.com/AVionDEV/Q-A-Bot)\\)"
-    }, {
+bot.onText(/\/start/, async (msg, match) => {
+    bot.sendMessage(msg.chat.id, `Привет, *${msg.from.first_name}\\!*👋\n\n_Хочешь написать кому\\-то из ребят\\?\nВыбирай одну из команд и пиши вопрос\nОтвет чекай в @tr\\_donkeys\n\nP\\.S\\. Это анонимно, не бойся \\([код](https://github.com/AVionDEV/Q-A-Bot)\\)_`, {
         'parse_mode': "MarkdownV2",
-        'disable_web_page_preview': true
-    });
+        "disable_web_page_preview": true
+    })
 });
 
-const spec = ['_', '*', '[', ']', '(', ')', '~', '`', '>',
-    '#', '+', '-', '=', '|', '{', '}', '.', '!'
-];
+function sendTo(msg, text, to) {
+    let spec = ['_', '*', '[', ']', '(', ')', '~', '`', '>',
+        '#', '+', '-', '=', '|', '{', '}', '.', '!'
+    ];
 
-client.on('message', ctx => {
-    if (ctx.update.message.from.id == client.botInfo.id) return;
-
-    const arr = ctx.message.text.split('');
+    const arr = text.split('');
     for (let i = 0; i < arr.length; i++) {
         if (spec.includes(arr[i])) {
             arr[i] = `\\${arr[i]}`;
         }
     }
 
-    ctx.telegram.sendMessage(process.env.OWNER_ID, `*New question:*\n\n_${arr.toString().replace(new RegExp(',', 'g'), '')}_`, {
-        'parse_mode': "MarkdownV2"
+    bot.getChat(process.env[to]).then(chat => {
+        bot.sendMessage(chat.id, `*Йо, у тебя новый вопрос:*\n\n_${arr.toString().replace(new RegExp(',', 'g'), '')}_`, {
+            'parse_mode': "MarkdownV2"
+        });
+        bot.sendMessage(msg.chat.id, "Ваш вопрос успешно отправлен!");
+    }).catch(err => {
+        bot.sendMessage(msg.chat.id, "К сожалению не удалось отправить ваш вопрос, попробуйте отправить его кому-то другому из трёх ослов.");
     });
+}
+
+bot.onText(/\/sasha/, async (msg, match) => {
+    if (msg.from.is_bot) return;
+
+    if (msg.text == undefined || msg.text.substring(6).trim().length == 0) return bot.sendMessage(msg.chat.id, "Извините, но отправлять можно только вопросы!");
+
+    sendTo(msg, msg.text.substring(6).trim(), "SASHA_ID");
 });
 
-client.command('/welc', ctx => {
-    ctx.sendMessage('test');
-})
+bot.onText(/\/lev/, async (msg, match) => {
+    if (msg.from.is_bot) return;
 
-client.launch({
-        'allowedUpdates': true
-    })
-    .catch(err => {
-        console.log(err);
-    });
+    if (msg.text == undefined || msg.text.substring(4).trim().length == 0) return bot.sendMessage(msg.chat.id, "Извините, но отправлять можно только вопросы!");
+
+    sendTo(msg, msg.text.substring(4).trim(), "LEV_ID");
+});
+
+bot.onText(/\/dima/, async (msg, match) => {
+    if (msg.from.is_bot) return;
+
+    if (msg.text == undefined || msg.text.substring(5).trim().length == 0) return bot.sendMessage(msg.chat.id, "Извините, но отправлять можно только вопросы!");
+
+    sendTo(msg, msg.text.substring(5).trim(), "OWNER_ID");
+});
