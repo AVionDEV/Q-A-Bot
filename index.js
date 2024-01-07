@@ -164,7 +164,7 @@ function sendTo(msg, to, type) {
                 }
             }
             bot.sendPhoto(chat.id, msg.photo[1].file_id, {
-                'caption': `*Подъём, тебе фотку кинули:*\n\n${arr != ''?'_'+arr?.toString().replace(new RegExp(',', 'g'), '')+'_':''}`,
+                'caption': `*Подъём, тебе фотку кинули:*\n\n${arr != ''?'_'+arr.toString().replace(new RegExp(',', 'g'), '')+'_':''}`,
                 'parse_mode': 'MarkdownV2',
             });
         }
