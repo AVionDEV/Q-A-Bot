@@ -157,7 +157,7 @@ function sendTo(msg, to, type) {
         }
 
         if (type == 'photo') {
-            const arr = msg?.caption?.split('') || '';
+            const arr = msg.caption.split('') || '';
             for (let i = 0; i < arr.length; i++) {
                 if (spec.includes(arr[i])) {
                     arr[i] = `\\${arr[i]}`;
