@@ -2,7 +2,6 @@ const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config({
     'path': __dirname + "/.env"
 });
-require('./keep_alive');
 
 const states = {};
 
@@ -24,11 +23,6 @@ bot.onText(/\/start/, async (msg, match) => {
             ]
         }
     });
-    if (msg.from.id == process.env['OWNER_ID'] || msg.from.id == process.env['SASHA_ID'] || msg.from.id == process.env['LEV_ID']) {
-        bot.sendMessage(msg.chat.id, '_Бот готов принимать вопросы 📡_', {
-            'parse_mode': 'MarkdownV2'
-        });
-    }
 
     states[msg.from.id] = null;
 });
@@ -52,6 +46,10 @@ bot.on('callback_query', (query) => {
                     [{
                         'callback_data': 'LEV_ID',
                         'text': 'Льву'
+                    }],
+                    [{
+                        'callback_data': 'ALL',
+                        'text': 'Всем сразу'
                     }]
                 ]
             }
@@ -60,7 +58,7 @@ bot.on('callback_query', (query) => {
 
     if (query.data == 'cancel') {
         delete states[query.from.id];
-        bot.editMessageText('_Оукей\n\n- Галя, у нас отмена!_', {
+        bot.editMessageText('_Оукей\n\n\\- Галя, у нас отмена\\!_', {
             'chat_id': query.message.chat.id,
             'message_id': query.message.message_id,
             'parse_mode': "MarkdownV2",
@@ -75,7 +73,7 @@ bot.on('callback_query', (query) => {
         });
     }
 
-    if (query.data == 'OWNER_ID' || query.data == 'SASHA_ID' || query.data == 'LEV_ID') {
+    if (query.data == 'OWNER_ID' || query.data == 'SASHA_ID' || query.data == 'LEV_ID' || query.data == 'ALL') {
         bot.editMessageText('_Пиши вопрос, жди ответ\n\nА также я могу передавать стикеры, фото, видео и войсы_', {
             'chat_id': query.message.chat.id,
             'message_id': query.message.message_id,
@@ -140,79 +138,105 @@ function sendTo(msg, to, type) {
         '#', '+', '-', '=', '|', '{', '}', '.', '!'
     ];
 
-    bot.getChat(process.env[to]).then(chat => {
+    const arr = {
+        'SASHA_ID': [process.env.SASHA_ID],
+        'LEV_ID': [process.env.LEV_ID],
+        'OWNER_ID': [process.env.OWNER_ID],
+        'ALL': [process.env.SASHA_ID, process.env.OWNER_ID, process.env.LEV_ID]
+    }
 
-        delete states[msg.from.id];
+    let answered = false;
 
-        if (type == 'message') {
-            const arr = msg.text.split('');
-            for (let i = 0; i < arr.length; i++) {
-                if (spec.includes(arr[i])) {
-                    arr[i] = `\\${arr[i]}`;
+    arr[to].forEach(el => {
+        bot.getChat(el).then(chat => {
+
+            delete states[msg.from.id];
+
+            if (type == 'message') {
+                const arr = msg.text.split('');
+                for (let i = 0; i < arr.length; i++) {
+                    if (spec.includes(arr[i])) {
+                        arr[i] = `\\${arr[i]}`;
+                    }
                 }
+                bot.sendMessage(chat.id, `*${(to == 'ALL')? "Общий вопрос:":"Wake up, у тебя вопрос:"}*\n\n_${arr.toString().replace(new RegExp(',', 'g'), '')}_`, {
+                    'parse_mode': 'MarkdownV2'
+                });
             }
-            bot.sendMessage(chat.id, `*Wake up, у тебя вопрос:*\n\n_${arr.toString().replace(new RegExp(',', 'g'), '')}_`, {
-                'parse_mode': 'MarkdownV2'
-            });
-        }
 
-        if (type == 'photo') {
-            const arr = msg.caption.split('') || '';
-            for (let i = 0; i < arr.length; i++) {
-                if (spec.includes(arr[i])) {
-                    arr[i] = `\\${arr[i]}`;
+            if (type == 'photo') {
+
+                let arr = [];
+
+                if (msg.caption != undefined) {
+                    arr = msg.caption.split('') || '';
+                    for (let i = 0; i < arr.length; i++) {
+                        if (spec.includes(arr[i])) {
+                            arr[i] = `\\${arr[i]}`;
+                        }
+                    }
                 }
+
+                bot.sendPhoto(chat.id, msg.photo[1].file_id, {
+                    'caption': `*${(to == 'ALL')? "Общая фотка:":"Подъём, тебе фотку кинули:"}*\n\n${arr != ''?'_'+arr.toString().replace(new RegExp(',', 'g'), '')+'_':''}`,
+                    'parse_mode': 'MarkdownV2',
+                });
             }
-            bot.sendPhoto(chat.id, msg.photo[1].file_id, {
-                'caption': `*Подъём, тебе фотку кинули:*\n\n${arr != ''?'_'+arr.toString().replace(new RegExp(',', 'g'), '')+'_':''}`,
+
+            if (type == 'sticker') {
+                bot.sendMessage(chat.id, `_${(to == 'ALL')?"Тут всем стикер пришёл:":"Поймал стикер?"}_`, {
+                    'parse_mode': 'MarkdownV2'
+                });
+                bot.sendSticker(chat.id, msg.sticker.file_id);
+            }
+
+            if (type == 'voice') {
+                bot.sendMessage(chat.id, `_${(to == 'ALL')?"Тут всем гс пришло":"Тебе гс кинули"}_`, {
+                    'parse_mode': 'MarkdownV2'
+                });
+                bot.sendVoice(chat.id, msg.voice.file_id);
+            }
+
+            if (type == 'video') {
+                bot.sendMessage(chat.id, `_${(to == 'ALL')?"Общий видос, ребят":"Тебе видос кинули"}_`, {
+                    'parse_mode': 'MarkdownV2'
+                });
+                bot.sendVideo(chat.id, msg.video.file_id);
+            }
+
+            if (answered) return;
+
+            answered = !answered;
+
+            bot.sendMessage(msg.chat.id, "Спасибо за вопрос, скоро вам ответят\\)", {
                 'parse_mode': 'MarkdownV2',
+                'reply_markup': {
+                    'inline_keyboard': [
+                        [{
+                            'callback_data': 'question',
+                            'text': 'Ещё один вопрос'
+                        }]
+                    ]
+                }
             });
-        }
+        }).catch(err => {
+            console.log(err);
 
-        if (type == 'sticker') {
-            bot.sendMessage(chat.id, '_Лови стикер_', {
-                'parse_mode': 'MarkdownV2'
+            if (answered) return;
+
+            answered = !answered;
+
+            bot.sendMessage(msg.chat.id, "К сожалению не удалось отправить ваш вопрос, попробуйте позже", {
+                'reply_markup': {
+                    'inline_keyboard': [
+                        [{
+                            'text': "Попробовать снова",
+                            'callback_data': "question"
+                        }]
+                    ]
+                }
             });
-            bot.sendSticker(chat.id, msg.sticker.file_id);
-        }
-
-        if (type == 'voice') {
-            bot.sendMessage(chat.id, '_Опять эти голосовые_', {
-                'parse_mode': 'MarkdownV2'
-            });
-            bot.sendVoice(chat.id, msg.voice.file_id);
-        }
-
-        if (type == 'video') {
-            bot.sendMessage(chat.id, '_Тебе видос кинули_', {
-                'parse_mode': 'MarkdownV2'
-            });
-            bot.sendVideo(chat.id, msg.video.file_id);
-        }
-
-        bot.sendMessage(msg.chat.id, "Спасибо за вопрос, скоро вам ответят\\)", {
-            'parse_mode': 'MarkdownV2',
-            'reply_markup': {
-                'inline_keyboard': [
-                    [{
-                        'callback_data': 'question',
-                        'text': 'Ещё один вопрос'
-                    }]
-                ]
-            }
+            delete states[msg.from.id];
         });
-    }).catch(err => {
-        console.log(err);
-        bot.sendMessage(msg.chat.id, "К сожалению не удалось отправить ваш вопрос, попробуйте позже", {
-            'reply_markup': {
-                'inline_keyboard': [
-                    [{
-                        'text': "Попробовать снова",
-                        'callback_data': "question"
-                    }]
-                ]
-            }
-        });
-        delete states[msg.from.id];
     });
 }
